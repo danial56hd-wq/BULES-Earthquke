@@ -2,7 +2,13 @@
 
 **رصد الزلازل والبراكين العالمي | Real-time earthquake & volcano monitoring**
 
-[العربية](#-العربية) · [English](#-english)
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
+![PWA](https://img.shields.io/badge/PWA-ready-57e3a0)
+![Vanilla JS](https://img.shields.io/badge/Vanilla-JS-f5bd5b)
+![No API keys](https://img.shields.io/badge/API%20keys-none-blue)
+![Languages](https://img.shields.io/badge/Languages-AR%20%7C%20EN-lightgrey)
+
+[العربية](#-العربية) · [English](#-english) · [Developer / المطور](#-developer--المطور) · [License](#-license--الترخيص)
 
 ---
 
@@ -122,17 +128,40 @@ PULSE **does not predict earthquakes** and does not replace official warnings. I
 
 ## 👨‍💻 Developer / المطور
 
-**Nidal Watfa (NIDAL WATFA)** — self-taught software developer from Syria, building entirely on a mobile phone.
+**Nidal Watfa (نضال وتفة) — NIDAL WATFA**
+مطوّر برمجيات مستقل (Self-taught) من سوريا، يبني تطبيقاته بالكامل من هاتف محمول.
+*Self-taught software developer from Syria, building entirely on a mobile phone.*
 
-- 📧 Email: [nidalwatfa99@gmail.com](mailto:nidalwatfa99@gmail.com)
-- 🌐 Codeberg: [codeberg.org/nidalwatfa](https://codeberg.org/nidalwatfa)
-- 🆔 ORCID: [0009-0003-2462-6630](https://orcid.org/0009-0003-2462-6630)
-- 🧭 Philosophy: **Vanilla Evolution — القوة في البساطة والأداء** (strength in simplicity and performance)
+> **Vanilla Evolution — القوة في البساطة والأداء**
+> *Strength in simplicity and performance.*
 
-Feedback and bug reports are welcome by email or through the in-app developer card.
+### 🔗 Links / الروابط
+
+| المنصة · Platform | الرابط · Link |
+|---|---|
+| 📧 Email | [nidalwatfa99@gmail.com](mailto:nidalwatfa99@gmail.com) |
+| 🌐 Codeberg | [codeberg.org/nidalwatfa](https://codeberg.org/nidalwatfa) |
+| 🐙 GitHub | [github.com/danial56hd-wq](https://github.com/danial56hd-wq) |
+| 💼 LinkedIn | [linkedin.com/in/nidal-watfa-a91720301](https://www.linkedin.com/in/nidal-watfa-a91720301) |
+| 𝕏 (Twitter) | [x.com/NidalWatfa12501](https://x.com/NidalWatfa12501) |
+| ✈️ Telegram | [@nidal12watfa](https://t.me/nidal12watfa) |
+| 🆔 ORCID | [0009-0003-2462-6630](https://orcid.org/0009-0003-2462-6630) |
+
+### 🤝 Contact & Feedback / التواصل والملاحظات
+
+- للإبلاغ عن مشكلة أو اقتراح ميزة: راسلني عبر البريد أو تيليجرام، أو استخدم بطاقة «المطور» داخل التطبيق.
+- For bug reports and feature requests: email or Telegram, or use the in-app **Developer** card.
+- Pull requests and issues are welcome on the project repository.
+
+### 📚 Cite / الاستشهاد
+
+If you use PULSE in research or a publication, please credit:
+
+> Watfa, N. (2026). *PULSE 4.1 — Global Seismic & Volcanic Intelligence* [Software]. ORCID: 0009-0003-2462-6630.
+
+---
 
 ## 📄 License / الترخيص
 
 Released under the **MIT License** — see [LICENSE](LICENSE).
 © 2026 Nidal Watfa.
-
