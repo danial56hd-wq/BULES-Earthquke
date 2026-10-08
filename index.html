@@ -1,0 +1,887 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#071313" />
+<meta name="description" content="PULSE 4.1 — منصة احترافية لمراقبة الزلازل والبراكين والبيانات الزلزالية العالمية." />
+<title>PULSE 4.1 — رصد الزلازل والبراكين</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%23071313'/%3E%3Cpath d='M12 58h20l7-20 12 43 10-31 7 18h20' fill='none' stroke='%2357e3a0' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<style>
+:root{--bg:#061010;--panel:#0c1919;--line:#1c3433;--text:#edf8f4;--muted:#91aaa5;--accent:#57e3a0;--accent2:#f5bd5b;--danger:#ff6675;--warn:#ffc857;--blue:#68b9ff;--shadow:0 18px 50px #0008}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;width:100%;max-width:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Arial,sans-serif}
+body{overflow:hidden}
+button,input,select{font:inherit}
+button{border:0;color:inherit;background:none;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.app{height:100vh;height:100dvh;width:100%;max-width:100vw;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);position:relative;overflow:hidden}
+.top{z-index:1000;min-width:0;max-width:100%;background:linear-gradient(180deg,#081515f5,#081515e8);backdrop-filter:blur(18px);border-bottom:1px solid var(--line);padding:10px 14px;padding-top:max(10px,env(safe-area-inset-top))}
+.bar{display:flex;gap:10px;align-items:center;min-width:0}
+.brand{display:flex;align-items:center;gap:10px;min-width:max-content}
+.logo{width:38px;height:38px;border:1px solid #2b4a47;border-radius:12px;background:#0a1a19;display:grid;place-items:center;color:var(--accent);font-size:20px}
+.brand b{font-size:18px;letter-spacing:.4px}
+.brand small{display:block;color:var(--muted);font-size:10px}
+.search{flex:1;display:flex;align-items:center;gap:8px;background:#0b1a1a;border:1px solid var(--line);border-radius:14px;padding:0 12px;min-width:120px}
+.search input{width:100%;height:42px;background:transparent;border:0;color:var(--text);outline:0}
+.actions{display:flex;gap:7px}
+.iconbtn,.pillbtn{min-width:42px;height:42px;border:1px solid var(--line);border-radius:13px;background:#0d1c1c;display:grid;place-items:center}
+.pillbtn{padding:0 12px;display:flex;gap:7px;min-width:auto;align-items:center}
+.liveDot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 0 #57e3a066;animation:pulse 1.8s infinite}
+.liveDot.off{background:var(--danger);animation:none}
+@keyframes pulse{70%{box-shadow:0 0 0 8px transparent}}
+.statusline{display:flex;gap:8px;align-items:center;margin-top:8px;overflow:auto;scrollbar-width:none;min-width:0;max-width:100%}
+.statusline::-webkit-scrollbar{display:none}
+.status{white-space:nowrap;flex:none;padding:6px 9px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:11px;background:#0a1717}
+.status strong{color:var(--text)}
+.main{min-height:0;min-width:0;max-width:100%;height:100%;position:relative;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;scroll-behavior:smooth}
+.mapStage{position:relative;height:calc(100% - 58px);min-height:320px;isolation:isolate}
+.map{position:absolute;inset:0;width:100%;height:100%;background:#071111;z-index:0;overflow:hidden;direction:ltr}
+.fallbackMap{position:absolute;inset:0;width:100%;height:100%;background:radial-gradient(circle at 50% 45%,#102827 0,#081313 58%,#050b0b 100%);touch-action:none;overflow:hidden}
+.fallbackMap svg{width:100%;height:100%;display:block}
+.fallbackLand{fill:#17302d;stroke:#28504a;stroke-width:.7}
+.fallbackGrid{stroke:#21403d;stroke-width:.45;opacity:.55}
+.fallbackMarker{stroke:#fff;stroke-width:1.4;filter:drop-shadow(0 0 5px #000);cursor:pointer}
+.fallbackMarker:hover{stroke:#57e3a0;stroke-width:2.2}
+.fallbackVolcano{fill:#f5bd5b;stroke:#fff;stroke-width:1}
+.fallbackWater{fill:#071111}
+.leaflet-container{background:#071111;font:inherit}
+.leaflet-control-zoom{border:0!important;box-shadow:var(--shadow)!important}
+.leaflet-control-zoom a{background:#0c1919e8!important;color:#fff!important;border-color:var(--line)!important}
+.leaflet-top.leaflet-right{margin-top:64px}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#0c1919;color:var(--text);border:1px solid var(--line)}
+.leaflet-popup-content{margin:12px;direction:rtl;text-align:right}
+.leaflet-popup-content a{color:var(--accent)}
+.quakeMarker{width:18px;height:18px;border-radius:50%;border:2px solid #fff8;box-shadow:0 0 0 5px #0003,0 0 22px currentColor}
+.volcanoMarker{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#17120c;border:1px solid #f5bd5b88;color:var(--accent2);box-shadow:0 0 22px #f5bd5b44}
+.hud{position:absolute;z-index:700;top:14px;left:14px;right:14px;display:flex;justify-content:space-between;gap:10px;pointer-events:none}
+.hud>div{pointer-events:auto}
+.hudCard{background:#071313d9;border:1px solid var(--line);backdrop-filter:blur(14px);border-radius:14px;padding:9px 11px;box-shadow:var(--shadow)}
+.hudCard b{font-size:13px}
+.hudCard small{display:block;color:var(--muted);font-size:10px}
+.maptools{position:absolute;z-index:900;top:84px;left:14px;display:flex;gap:8px;flex-direction:column}
+.maptool{width:44px;height:44px;border-radius:13px;background:#081515ee;border:1px solid var(--line);box-shadow:var(--shadow);display:grid;place-items:center}
+.maptool.on{border-color:var(--accent);color:var(--accent)}
+.toFeed{position:absolute;z-index:900;bottom:12px;left:50%;transform:translateX(-50%);height:38px;padding:0 16px;border-radius:999px;background:#081515ee;border:1px solid var(--line);box-shadow:var(--shadow);color:var(--accent);font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px}
+.sheet{position:relative;z-index:1;min-width:0;max-width:100%;background:linear-gradient(180deg,#091717f7,#081313fc);border-top:1px solid var(--line);border-radius:22px 22px 0 0;box-shadow:0 -20px 60px #0009;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)}
+.grab{width:46px;height:5px;background:#36504d;border-radius:99px;margin:9px auto 3px}
+.tabs{display:flex;gap:6px;padding:6px 10px 8px;border-bottom:1px solid var(--line);overflow:auto;position:sticky;top:0;z-index:5;background:#091717}
+.tab{white-space:nowrap;padding:9px 12px;border-radius:11px;color:var(--muted);border:1px solid transparent}
+.tab.active{background:#15302b;color:var(--accent);border-color:#2c5149}
+.content{padding:12px}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.card{background:#0c1b1b;border:1px solid var(--line);border-radius:15px;padding:12px}
+.metric b{font-size:21px}
+.metric small{display:block;color:var(--muted);margin-top:3px}
+.sectionTitle{display:flex;align-items:center;justify-content:space-between;margin:14px 2px 8px}
+.sectionTitle b{font-size:14px}
+.sectionTitle span{font-size:11px;color:var(--muted)}
+.feed{display:grid;gap:8px}
+.event{display:grid;grid-template-columns:58px 1fr auto;gap:10px;align-items:center;background:#0b1919;border:1px solid var(--line);border-radius:15px;padding:9px;cursor:pointer}
+.mag{width:58px;height:58px;border-radius:14px;display:grid;place-items:center;background:#152323;border:1px solid #2a4442}
+.mag b{font-size:20px}
+.event h3{font-size:13px;margin:0 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.event p{margin:0;color:var(--muted);font-size:11px}
+.badge{font-size:10px;padding:5px 7px;border-radius:999px;border:1px solid var(--line);white-space:nowrap}
+.warn{color:var(--warn)}
+.detailHero{display:grid;grid-template-columns:120px 1fr;gap:12px}
+.bigMag{border-radius:18px;background:#101f1f;border:1px solid var(--line);display:grid;place-items:center;min-height:120px}
+.bigMag b{font-size:48px}
+.scale{height:13px;border-radius:99px;background:linear-gradient(90deg,#62c370 0 30%,#f5c04e 30% 50%,#f78c3d 50% 65%,#ed4e54 65% 80%,#a92739 80%);position:relative;direction:ltr}
+.scale i{position:absolute;top:-4px;width:3px;height:21px;background:#fff;border-radius:4px;box-shadow:0 0 0 2px #0008}
+.scaleLabels{display:flex;justify-content:space-between;color:var(--muted);font-size:9px;margin-top:4px;direction:ltr}
+.kv{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}
+.kv div{background:#0a1818;border:1px solid var(--line);border-radius:11px;padding:9px;word-break:break-word}
+.kv small{display:block;color:var(--muted);font-size:10px}
+.kv b{font-size:12px}
+.chart{width:100%;height:170px;background:#091616;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.chart svg{width:100%;height:100%}
+.toolbar{display:flex;gap:7px;flex-wrap:wrap}
+.select{height:38px;background:#0a1818;border:1px solid var(--line);border-radius:11px;color:var(--text);padding:0 10px}
+.empty{padding:30px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:15px}
+.modal{position:fixed;inset:0;z-index:2000;background:#0009;display:none;place-items:center;padding:18px}
+.modal.open{display:grid}
+.dialog{width:min(560px,100%);max-width:calc(100vw - 36px);max-height:90dvh;overflow:auto;background:#0a1717;border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:16px}
+.dialogHead{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:12px}
+.dialog h2{font-size:18px;margin:0}
+.row{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.switch{width:48px;height:28px;border-radius:99px;background:#263432;padding:3px;flex:none}
+.switch i{display:block;width:22px;height:22px;border-radius:50%;background:#9aaba7;transition:.2s}
+.switch.on{background:#18533f}
+.switch.on i{transform:translateX(20px);background:var(--accent)}
+[dir="rtl"] .switch.on i{transform:translateX(-20px)}
+.btn{display:inline-block;padding:10px 13px;border-radius:12px;background:#12332a;border:1px solid #2c5e4e;color:var(--accent);text-decoration:none}
+.btn.secondary{background:#0b1919;border-color:var(--line);color:var(--text)}
+.footerNote{font-size:10px;color:var(--muted);line-height:1.7}
+@media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.brand small{display:none}}
+@media(max-width:640px){.top{padding:8px;padding-top:max(8px,env(safe-area-inset-top))}.bar{flex-wrap:wrap}.brand b{font-size:16px}.search{order:3;flex-basis:100%}.statusline{margin-top:7px}.hud{top:10px;left:8px;right:8px}.hudCard{padding:7px 9px}.hudCard small{font-size:9px}.maptools{top:96px}.detailHero{grid-template-columns:1fr}.bigMag{min-height:90px}.event{grid-template-columns:52px 1fr}.event>.badge{display:none}}
+/* ===== PULSE 4.1 additions ===== */
+.grab{cursor:pointer;position:relative}
+.grab::after{content:'';position:absolute;inset:-12px -50px}
+.sheet.collapsed .content{display:none}
+.evpanel{padding:2px 12px 10px;border-bottom:1px solid var(--line)}
+.evInfo{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;font-size:11px;color:var(--muted)}
+.evInfo b{color:var(--text)}
+.evBadges{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
+.evTag{font-size:10px;color:var(--accent2)}
+.magnitudeScale{direction:ltr}
+.magnitudeScaleTitle{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--muted);margin-bottom:8px;direction:inherit}
+.magnitudeScaleTitle strong{font-size:20px;color:var(--text)}
+.magnitudeScaleTitle small{font-size:11px;color:var(--accent);font-weight:600}
+.magnitudeTrack{position:relative;height:12px;border-radius:99px;background:linear-gradient(90deg,#62c370 0 40%,#f5c04e 40% 50%,#f78c3d 50% 60%,#ed4e54 60% 70%,#a92739 70%)}
+.magnitudePointer{position:absolute;top:-5px;width:4px;height:22px;margin-left:-2px;background:#fff;border-radius:4px;box-shadow:0 0 0 2px #0008,0 0 12px #fff8;transition:left .4s}
+.magnitudeLabels{display:flex;justify-content:space-between;color:var(--muted);font-size:9px;margin-top:6px}
+.quakeMarkerWrap{position:relative;width:30px;height:30px;display:grid;place-items:center}
+.quakeMarkerCore{position:relative;width:13px;height:13px;border-radius:50%;border:2px solid #fff8;box-shadow:0 0 12px currentColor}
+.quakeMarkerWrap.moderate .quakeMarkerCore{width:15px;height:15px}
+.quakeMarkerWrap.strong .quakeMarkerCore{width:18px;height:18px}
+.quakeMarkerWrap.major .quakeMarkerCore{width:22px;height:22px;border-color:#fff}
+.quakePulse{position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;border:2.5px solid currentColor;box-shadow:0 0 10px currentColor;opacity:0;animation:qp 2.4s ease-out infinite;pointer-events:none}
+.quakePulse.p2{animation-delay:1.2s}
+@keyframes qp{0%{transform:scale(.35);opacity:.95}70%{opacity:.35}100%{transform:scale(var(--s,2.4));opacity:0}}
+@media(prefers-reduced-motion:reduce){.quakePulse{animation-duration:6s}}
+.quakeLabel{position:absolute;top:100%;margin-top:-4px;font-size:10px;font-weight:800;color:#fff;text-shadow:0 0 4px #000,0 0 4px #000;white-space:nowrap;direction:ltr}
+.volcanoMarker{font-size:16px}
+.fallbackQuake{cursor:pointer}
+.fallbackQuake:hover circle:first-child{stroke:#57e3a0}
+.alertBanner{position:fixed;z-index:2500;box-sizing:border-box;top:max(12px,env(safe-area-inset-top));left:50%;transform:translate(-50%,-150%);width:min(460px,calc(100vw - 24px));max-width:calc(100vw - 24px);background:#1a0d10;border:1px solid #ff667588;border-radius:16px;padding:13px;box-shadow:0 18px 50px #000a,0 0 30px #ff667533;transition:transform .35s}
+.alertBanner.show{transform:translate(-50%,0)}
+.alertBannerTitle{font-weight:900;font-size:14px}
+.alertBannerText{font-size:12px;color:#c9b4b6;margin:5px 0 10px;line-height:1.6}
+.alertBannerActions{display:flex;gap:8px}
+.audioActivation{position:fixed;z-index:2400;box-sizing:border-box;top:128px;left:12px;right:12px;width:auto;max-width:min(420px,calc(100vw - 24px));margin-inline:auto;background:#0c1919;border:1px solid #2c5e4e;border-radius:16px;padding:14px;box-shadow:var(--shadow);display:none}
+.audioActivation.show{display:block}
+.audioActivation button{width:100%;padding:11px;border-radius:12px;background:#12332a;border:1px solid #2c5e4e;color:var(--accent);font-weight:800}
+.feedbackBox{margin-top:14px;background:#0c1b1b;border:1px solid var(--line);border-radius:15px;padding:13px}
+.feedbackActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.feedbackActions a{padding:9px 12px;border-radius:12px;background:#12332a;border:1px solid #2c5e4e;color:var(--accent);text-decoration:none;font-size:12px}
+/* ===== Live feed section (below the full-screen map) ===== */
+.liveSection{position:relative;z-index:1;min-width:0;max-width:100%;padding:0 12px 14px;background:linear-gradient(180deg,#071212,#061010);border-top:1px solid var(--line)}
+.liveHead{min-height:58px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.liveHead b{font-size:14px;display:block}
+.liveHead small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+.liveHead .btn{padding:8px 11px;font-size:12px;white-space:nowrap}
+.liveCard{background:#0b1919;border:1px solid var(--line);border-radius:15px;padding:10px}
+.liveTop{display:grid;grid-template-columns:58px 1fr auto;gap:10px;align-items:center}
+.liveTop h3{font-size:13px;margin:0 0 4px;line-height:1.5}
+.liveTop p{margin:0;color:var(--muted);font-size:11px}
+.liveCard .kv{grid-template-columns:repeat(3,1fr);margin-top:9px}
+.liveCard .toolbar{margin-top:9px}
+.liveCard .btn{padding:8px 11px;font-size:12px}
+.liveMore{display:block;width:100%;margin-top:10px;text-align:center}
+@media(max-width:640px){.liveCard .kv{grid-template-columns:repeat(2,1fr)}.liveTop{grid-template-columns:52px 1fr}.liveTop>.badge{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+<header class="top" id="topBar">
+  <div class="bar">
+    <div class="brand"><div class="logo">◈</div><div><b>PULSE</b><small>Global Seismic &amp; Volcanic Intelligence</small></div></div>
+    <div class="search"><span>⌕</span><input id="search" type="search" placeholder="ابحث عن مدينة أو منطقة..." autocomplete="off" /></div>
+    <div class="actions">
+      <button class="pillbtn" id="liveBtn" title="Live" aria-label="Live"><span class="liveDot" id="liveDot"></span><span id="liveText">LIVE</span></button>
+      <button class="iconbtn" id="langBtn" title="Language" aria-label="Language">EN</button>
+      <button class="iconbtn" id="alertBtn" title="Alerts" aria-label="Alerts">🔔</button>
+      <button class="iconbtn" id="shareBtn" title="Share" aria-label="Share">↗</button>
+    </div>
+  </div>
+  <div class="statusline">
+    <div class="status"><strong id="netStatus">Online</strong></div>
+    <div class="status">USGS: <strong id="feedStatus">—</strong></div>
+    <div class="status"><span data-i18n="eventsLbl">الأحداث</span>: <strong id="eventCount">0</strong></div>
+    <button class="status" id="devChip" style="cursor:pointer;color:var(--accent)" data-i18n="devChip">💬 المطور</button>
+    <div class="status"><span data-i18n="updatedLbl">آخر تحديث</span>: <strong id="clock">—</strong></div>
+  </div>
+</header>
+<main class="main" id="mainScroll">
+  <!-- Full-screen map -->
+  <div class="mapStage" id="mapStage">
+    <div id="map" class="map"></div>
+    <div class="hud">
+      <div class="hudCard"><b id="mapTitle" data-i18n="mapTitle">خريطة النشاط الزلزالي العالمي</b><small id="mapSub" data-i18n="mapSub">بيانات USGS الرسمية — يتم التحديث دورياً</small></div>
+      <div class="hudCard"><small data-i18n="liveEventsLbl">LIVE EVENTS</small><b id="hudCount">0</b></div>
+    </div>
+    <div class="maptools">
+      <button class="maptool" id="locBtn" data-i18n-title="myLocation" title="موقعي" aria-label="موقعي">⌖</button>
+      <button class="maptool" id="fitBtn" data-i18n-title="fitAll" title="إظهار جميع الأحداث" aria-label="إظهار جميع الأحداث">⛶</button>
+      <button class="maptool" id="heatBtn" title="Heatmap" aria-label="Heatmap">◌</button>
+      <button class="maptool" id="layersBtn" data-i18n-title="layersT" title="طبقات الخريطة" aria-label="طبقات الخريطة">☷</button>
+      <button class="maptool" id="volBtn" data-i18n-title="volcanoes" title="البراكين" aria-label="البراكين">🌋</button>
+    </div>
+    <button class="toFeed" id="toFeed"><span data-i18n="liveFeedShort">آخر الأحداث</span> <span>⌄</span></button>
+  </div>
+
+  <!-- Latest live events with full data -->
+  <section class="liveSection" id="liveSection">
+    <div class="liveHead">
+      <div><b data-i18n="liveFeed">آخر المستجدات والأحداث اللحظية</b><small id="liveSub"></small></div>
+      <button class="btn secondary" id="toMap" data-i18n="backToMap">⌃ الخريطة</button>
+    </div>
+    <div class="feed" id="liveFeed"></div>
+    <button class="btn secondary liveMore" id="liveMore" style="display:none"></button>
+  </section>
+
+  <!-- Tabs & analysis -->
+  <section class="sheet">
+    <div class="grab"></div>
+    <nav class="tabs">
+      <button class="tab active" data-tab="overview">نظرة عامة</button>
+      <button class="tab" data-tab="earthquakes">الزلازل</button>
+      <button class="tab" data-tab="analytics">التحليلات</button>
+      <button class="tab" data-tab="timeline">الخط الزمني</button>
+      <button class="tab" data-tab="swarm">التجمعات</button>
+      <button class="tab" data-tab="volcanoes">البراكين</button>
+      <button class="tab" data-tab="watch">Region Watch</button>
+      <button class="tab" data-tab="alerts">التنبيهات</button>
+    </nav>
+    <div class="content" id="content"></div>
+  </section>
+</main>
+</div>
+<div class="modal" id="modal" aria-hidden="true">
+  <div class="dialog">
+    <div class="dialogHead"><h2 id="modalTitle">PULSE</h2><button class="iconbtn" id="modalClose" aria-label="Close">×</button></div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script>
+'use strict';
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+function jget(k,d){try{return JSON.parse(localStorage.getItem(k)||'null')??d}catch{return d}}
+function jset(k,v){try{localStorage.setItem(k,typeof v==='string'?v:JSON.stringify(v))}catch{}}
+function lget(k){try{return localStorage.getItem(k)}catch{return null}}
+
+const state={
+  lang:lget('pulseLang')==='en'?'en':'ar',live:true,events:[],volcanoes:[],last:0,minMag:0,maxDepth:700,heat:false,tab:'overview',layer:'dark',
+  watch:jget('pulseWatch',null),
+  alerts:jget('pulseAlerts',{browser:false,sound:false,vibration:false,mag:5,radius:500})
+};
+let map,leafletReady=false,quakeLayer,volcanoLayer,heatLayer,userMarker=null,fb={s:1,x:0,y:0};
+const base={};
+const USGS_DAY='https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson';
+const VOLCANO_URL='https://volcanoes.usgs.gov/hans-public/api/volcano/getElevatedVolcanoes';
+
+const D={
+overview:['نظرة عامة','Overview'],earthquakes:['الزلازل','Earthquakes'],analytics:['التحليلات','Analytics'],timeline:['الخط الزمني','Timeline'],swarm:['التجمعات','Clusters'],volcanoes:['البراكين','Volcanoes'],watch:['مراقبة المنطقة','Region Watch'],alerts:['التنبيهات','Alerts'],
+online:['متصل','Online'],offline:['غير متصل','Offline'],total:['إجمالي الأحداث','Total events'],strongest:['أقوى حدث','Strongest'],average:['متوسط القوة','Average magnitude'],deep:['الأحداث العميقة','Deep events'],recent:['أحدث الأحداث','Recent events'],
+depth:['العمق','Depth'],location:['الموقع','Location'],time:['الوقت','Time'],details:['التفاصيل','Details'],source:['المصدر','Source'],tsunami:['تسونامي','Tsunami'],felt:['شعر به الناس','Felt reports'],intensity:['الشدة','Intensity'],alert:['التنبيه','Alert'],station:['المحطات','Stations'],energyEstimate:['الطاقة المقدرة','Estimated energy'],formula:['المعادلة العلمية','Scientific formula'],
+noData:['لا توجد بيانات متاحة حالياً.','No data available.'],loading:['جارٍ التحميل...','Loading...'],searching:['جارٍ البحث...','Searching...'],save:['حفظ','Save'],browser:['تنبيهات المتصفح','Browser notifications'],sound:['الصوت','Sound'],vibration:['الاهتزاز','Vibration'],
+magnitudeThreshold:['عتبة المقدار','Magnitude threshold'],distanceThreshold:['نطاق التنبيه كم','Alert radius km'],alertSettings:['إعدادات التنبيه','Alert settings'],volElevated:['براكين ذات نشاط مرتفع','Elevated volcanoes'],regionWatch:['مراقبة المنطقة','Region Watch'],
+enableWatch:['تفعيل Region Watch','Enable Region Watch'],disableWatch:['إيقاف Region Watch','Disable Region Watch'],radius:['النطاق','Radius'],myLocation:['موقعي','My location'],swarmScore:['درجة التجمع','Cluster score'],calculated:['محسوب بواسطة PULSE','Calculated by PULSE'],replay:['إعادة تشغيل الأحداث','Replay events'],
+/* static interface + live feed */
+searchPh:['ابحث عن مدينة أو منطقة...','Search city or region...'],mapTitle:['خريطة النشاط الزلزالي العالمي','Global Seismic Activity Map'],mapSub:['بيانات USGS الرسمية — يتم التحديث دورياً','Official USGS data — updated periodically'],
+eventsLbl:['الأحداث','Events'],updatedLbl:['آخر تحديث','Updated'],devChip:['💬 المطور','💬 Developer'],liveEventsLbl:['أحداث مباشرة','LIVE EVENTS'],fitAll:['إظهار جميع الأحداث','Fit all events'],layersT:['طبقات الخريطة','Map layers'],
+liveFeed:['آخر المستجدات والأحداث اللحظية','Latest Live Events & Updates'],liveFeedShort:['آخر الأحداث','Latest events'],backToMap:['⌃ الخريطة','⌃ Map'],showOnMap:['عرض على الخريطة','Show on map'],showMore:['عرض المزيد','Show more'],
+coords:['الإحداثيات','Coordinates'],updatedAt:['آخر تحديث للحدث','Event updated'],magTypeLbl:['نوع المقدار','Magnitude type'],sigLbl:['الأهمية','Significance'],statusLbl:['الحالة','Status'],typeLbl:['النوع','Type'],
+viewEvent:['عرض الحدث','View event'],close:['إغلاق','Close'],actTitle:['🔔 تفعيل تنبيهات PULSE','🔔 Enable PULSE alerts'],
+actText:['فعّل الصوت والإشعارات حتى يتمكن PULSE من تنبيهك عند اكتشاف زلزال أو تحديث بركاني مهم.','Enable sound and notifications so PULSE can alert you about significant earthquakes or volcano updates.'],actBtn:['🔔 تفعيل التنبيهات الآن','🔔 Enable alerts now']
+};
+const T=k=>D[k]?D[k][state.lang==='ar'?0:1]:k;
+const AR=()=>state.lang==='ar';
+const X=(a,e)=>AR()?a:e;
+const esc=v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
+const fmtTime=t=>new Date(t).toLocaleString(AR()?'ar-u-nu-latn':'en-GB');
+
+function applyStatic(){
+  $$('[data-i18n]').forEach(el=>{el.textContent=T(el.getAttribute('data-i18n'))});
+  $$('[data-i18n-title]').forEach(el=>{const t=T(el.getAttribute('data-i18n-title'));el.title=t;el.setAttribute('aria-label',t)});
+  $('#search').placeholder=T('searchPh');
+  document.title=AR()?'PULSE 4.1 — رصد الزلازل والبراكين':'PULSE 4.1 — Earthquake & Volcano Monitor';
+}
+function applyLang(){
+  document.documentElement.lang=state.lang;
+  document.documentElement.dir=AR()?'rtl':'ltr';
+  $('#langBtn').textContent=AR()?'EN':'AR';
+  $$('.tab').forEach(t=>t.textContent=T(t.dataset.tab));
+  $('#netStatus').textContent=navigator.onLine?T('online'):T('offline');
+  applyStatic();
+  render();
+}
+function ago(ts){
+  const s=Math.floor(Math.max(0,Date.now()-Number(ts||0))/1000);
+  if(s<60)return AR()?`منذ ${s} ث`:`${s}s ago`;
+  const m=Math.floor(s/60);if(m<60)return AR()?`منذ ${m} د`:`${m}m ago`;
+  const h=Math.floor(m/60);if(h<24)return AR()?`منذ ${h} س`:`${h}h ago`;
+  const d=Math.floor(h/24);return AR()?`منذ ${d} يوم`:`${d}d ago`;
+}
+const magColor=m=>m>=7?'#a92739':m>=6?'#ed4e54':m>=5?'#f78c3d':m>=4?'#f5c04e':'#62c370';
+const energyJoules=m=>Math.pow(10,1.5*Number(m)+4.8);
+function formatEnergy(m){
+  const e=energyJoules(m);if(!Number.isFinite(e))return '—';
+  if(e>=1e15)return (e/1e15).toFixed(2)+' PJ';if(e>=1e12)return (e/1e12).toFixed(2)+' TJ';
+  if(e>=1e9)return (e/1e9).toFixed(2)+' GJ';if(e>=1e6)return (e/1e6).toFixed(2)+' MJ';
+  return e.toExponential(2)+' J';
+}
+const validEvent=e=>Number.isFinite(e.lat)&&Number.isFinite(e.lon)&&Number.isFinite(e.mag);
+const filteredEvents=()=>state.events.filter(validEvent).filter(e=>e.mag>=Number(state.minMag||0)).filter(e=>!(e.depth>Number(state.maxDepth||700))).sort((a,b)=>b.time-a.time);
+const strongest=()=>state.events.filter(validEvent).sort((a,b)=>b.mag-a.mag)[0];
+function averageMagnitude(){const a=state.events.filter(validEvent);return a.length?a.reduce((s,e)=>s+e.mag,0)/a.length:0}
+const deepCount=()=>state.events.filter(validEvent).filter(e=>e.depth>=70).length;
+const dep=e=>Number.isFinite(e.depth)?e.depth.toFixed(1)+' km':'—';
+
+function quakePopup(e){
+  return `<div style="min-width:220px"><div style="font-size:11px;color:#91aaa5">${esc(e.magType)}</div>
+  <div style="font-size:24px;font-weight:800;color:${magColor(e.mag)}">M ${e.mag.toFixed(1)}</div>
+  <div style="font-weight:700;margin:4px 0 8px">${esc(e.place)}</div>
+  <div style="font-size:11px;color:#91aaa5">${fmtTime(e.time)}</div>
+  <div style="font-size:11px;margin-top:5px">${X('العمق:','Depth:')} ${dep(e)}</div>
+  <div style="font-size:11px;margin-top:4px">${X('الطاقة:','Energy:')} ${formatEnergy(e.mag)}</div>
+  ${e.url?`<div style="margin-top:8px"><a href="${esc(e.url)}" target="_blank" rel="noopener noreferrer">${X('تفاصيل USGS','USGS details')}</a></div>`:''}</div>`;
+}
+
+/* ---------- Fallback SVG map ---------- */
+const LAND=['M70 180L110 155 150 160 180 185 210 205 235 220 260 245 270 280 250 310 220 315 205 290 180 270 155 250 125 225 95 215Z','M285 315L320 330 345 360 350 395 335 430 315 465 300 500 275 515 260 490 270 450 285 415 292 380 275 350Z','M470 155L520 130 575 135 610 160 645 175 670 205 655 235 625 245 605 270 565 265 530 250 500 225 475 200Z','M525 285L565 275 605 290 630 320 640 360 625 400 600 435 570 450 545 430 530 390 515 350 500 315Z','M680 150L730 135 775 150 820 170 860 185 900 210 925 245 915 275 880 290 840 280 805 260 770 255 730 240 700 215 675 185Z','M850 310L885 300 920 320 945 350 960 385 945 415 915 430 885 415 860 390 845 355Z','M1020 230L1050 215 1080 225 1100 250 1090 275 1060 285 1035 270Z','M1010 330L1045 325 1080 340 1095 365 1080 390 1045 400 1015 380Z'];
+function renderFallbackMap(list){
+  const el=$('#map');if(!el||leafletReady)return;
+  const ev=list||filteredEvents(),W=1200,H=620,pr=(la,lo)=>[(lo+180)/360*W,(90-la)/180*H];
+  const mk=ev.map(e=>{const[x,y]=pr(e.lat,e.lon),r=Math.max(3,Math.min(10,3+e.mag*1.05)),c=magColor(e.mag);return `<g class="fallbackQuake" data-id="${esc(e.id)}"><circle cx="${x}" cy="${y}" r="${r}" fill="${c}" stroke="#fff" stroke-width="1.3"/><circle cx="${x}" cy="${y}" r="${r+5}" fill="none" stroke="${c}" stroke-width="1" opacity=".45"><animate attributeName="r" from="${r+3}" to="${r+18}" dur="2.8s" repeatCount="indefinite"/><animate attributeName="opacity" from=".55" to="0" dur="2.8s" repeatCount="indefinite"/></circle><title>M ${e.mag.toFixed(1)} ${esc(e.magType||'')} — ${esc(e.place)} — ${dep(e)}</title></g>`}).join('');
+  const vk=state.volcanoes.filter(v=>Number.isFinite(v.lat)&&Number.isFinite(v.lon)).map(v=>{const[x,y]=pr(v.lat,v.lon);return `<circle class="fallbackVolcano" cx="${x}" cy="${y}" r="5"><title>${esc(v.name)}</title></circle>`}).join('');
+  let grid='';
+  for(let lo=-180;lo<=180;lo+=30){const x=pr(0,lo)[0];grid+=`<line class="fallbackGrid" x1="${x}" y1="0" x2="${x}" y2="${H}"/>`}
+  for(let la=-60;la<=60;la+=30){const y=pr(la,0)[1];grid+=`<line class="fallbackGrid" x1="0" y1="${y}" x2="${W}" y2="${y}"/>`}
+  const hidden=$('#fallbackVolcanoes')?.style.display==='none'?'style="display:none"':'';
+  el.innerHTML=`<div class="fallbackMap" id="fallbackMap" aria-label="PULSE fallback world map"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img"><rect class="fallbackWater" width="${W}" height="${H}"/>${grid}${LAND.map(d=>`<path class="fallbackLand" d="${d}"/>`).join('')}<g id="fallbackVolcanoes" ${hidden}>${vk}</g><g id="fallbackQuakes">${mk}</g></svg>
+  <div style="position:absolute;right:14px;bottom:12px;padding:7px 10px;border-radius:10px;border:1px solid var(--line);background:#071313d9;color:#91aaa5;font-size:10px">PULSE map fallback</div></div>`;
+  const f=$('#fallbackMap'),svg=f.querySelector('svg');let drag=false,sx=0,sy=0,moved=false;
+  const ap=()=>{svg.style.transform=`translate(${fb.x}px,${fb.y}px) scale(${fb.s})`;svg.style.transformOrigin='center center'};ap();
+  f.addEventListener('wheel',e=>{e.preventDefault();fb.s=Math.max(.75,Math.min(5,fb.s+(e.deltaY<0?.15:-.15)));ap()},{passive:false});
+  f.addEventListener('pointerdown',e=>{drag=true;moved=false;sx=e.clientX-fb.x;sy=e.clientY-fb.y});
+  f.addEventListener('pointermove',e=>{if(!drag)return;const nx=e.clientX-sx,ny=e.clientY-sy;if(Math.abs(nx-fb.x)+Math.abs(ny-fb.y)>2)moved=true;fb.x=nx;fb.y=ny;ap()});
+  f.addEventListener('pointerup',()=>{drag=false});
+  f.addEventListener('pointercancel',()=>{drag=false});
+  f.querySelectorAll('.fallbackQuake').forEach(c=>c.addEventListener('click',e=>{e.stopPropagation();if(moved)return;const ev2=state.events.find(x=>String(x.id)===String(c.dataset.id));if(ev2)openEvent(ev2)}));
+}
+function createFallbackMapShim(){return{setView(){return this},getCenter(){return{lat:0,lng:0}},getZoom(){return 2},fitBounds(){return this},addLayer(){return this},removeLayer(){return this},hasLayer(){return false},invalidateSize(){}}}
+
+/* ---------- Leaflet map ---------- */
+function initMap(){
+  if(typeof L==='undefined'){map=createFallbackMapShim();renderFallbackMap();return}
+  try{
+    $('#map').innerHTML='';
+    map=L.map('map',{zoomControl:false,worldCopyJump:true,minZoom:1,maxZoom:12});
+    L.control.zoom({position:'topright'}).addTo(map);
+    leafletReady=true;
+    base.dark=L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors &copy; CARTO'});
+    base.street=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'});
+    base.sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Tiles &copy; Esri'});
+    let errs=0,fell=false;
+    const onErr=()=>{errs++;
+      if(errs===6&&map.hasLayer(base.dark)){map.removeLayer(base.dark);base.street.addTo(map);state.layer='street'}
+      if(errs>=18&&!fell){fell=true;setTimeout(()=>{try{map.remove()}catch{}
+        leafletReady=false;map=createFallbackMapShim();const el=$('#map');el.className='map';el.innerHTML='';renderFallbackMap();
+        toast(AR()?'تم تشغيل الخريطة الاحتياطية لضمان استمرار العرض.':'Fallback map activated to keep the map available.')},300)}};
+    Object.values(base).forEach(l=>{l.on('tileerror',onErr);l.on('tileload',()=>{if(!fell)errs=0})});
+    base.dark.addTo(map);
+    map.setView([20,0],2);
+    quakeLayer=L.markerClusterGroup({showCoverageOnHover:false,maxClusterRadius:45});
+    volcanoLayer=L.layerGroup();heatLayer=L.layerGroup();
+    map.addLayer(quakeLayer);map.addLayer(volcanoLayer);
+    setTimeout(()=>map.invalidateSize(),250);
+    window.addEventListener('resize',()=>map.invalidateSize());
+    if(window.ResizeObserver)new ResizeObserver(()=>map.invalidateSize()).observe($('#map'));
+  }catch(err){leafletReady=false;map=createFallbackMapShim();renderFallbackMap()}
+}
+function drawQuakes(list){
+  quakeLayer.clearLayers();
+  for(const e of list){
+    const m=L.marker([e.lat,e.lon],{icon:quakeIcon(e)});
+    m.bindPopup(quakePopup(e));m.on('click',()=>openEvent(e));quakeLayer.addLayer(m);
+  }
+}
+function renderQuakes(){
+  $('#eventCount').textContent=state.events.length;
+  $('#hudCount').textContent=state.events.length;
+  if(typeof renderEvPanel==='function')renderEvPanel();
+  if(typeof renderLiveFeed==='function')renderLiveFeed();
+  if(!leafletReady){renderFallbackMap();return}
+  drawQuakes(filteredEvents());
+  volcanoLayer.clearLayers();
+  state.volcanoes.filter(v=>Number.isFinite(v.lat)&&Number.isFinite(v.lon)).forEach(v=>{
+    L.marker([v.lat,v.lon],{icon:L.divIcon({className:'',html:'<div class="volcanoMarker">🌋</div>',iconSize:[30,30],iconAnchor:[15,15]})})
+    .bindPopup(`<b>${esc(v.name)}</b><br>${esc(v.country)} · ${esc(v.status)}`).addTo(volcanoLayer);
+  });
+  heatLayer.clearLayers();
+  if(state.heat){
+    filteredEvents().forEach(e=>L.circle([e.lat,e.lon],{radius:30000+e.mag*25000,stroke:false,fillColor:magColor(e.mag),fillOpacity:.18,interactive:false}).addTo(heatLayer));
+    if(!map.hasLayer(heatLayer))map.addLayer(heatLayer);
+  }else if(map.hasLayer(heatLayer))map.removeLayer(heatLayer);
+}
+function goTo(lat,lon,z){if(leafletReady&&map&&Number.isFinite(lat)&&Number.isFinite(lon))map.setView([lat,lon],z)}
+
+/* ---------- Data ---------- */
+async function loadQuakes(){
+  $('#feedStatus').textContent=T('loading');
+  try{
+    const r=await fetch(USGS_DAY,{cache:'no-store'});
+    if(!r.ok)throw new Error('USGS '+r.status);
+    const data=await r.json();
+    state.events=(data.features||[]).map(parseFeature).filter(validEvent).sort((a,b)=>b.time-a.time);
+    state.last=Date.now();
+    jset('pulseCache',{t:state.last,events:state.events});
+    $('#feedStatus').textContent='OK';
+    renderQuakes();
+    if(state.tab==='overview')render();
+    checkAlerts();checkWatchAlerts();
+  }catch(err){
+    $('#feedStatus').textContent='Offline';
+    const c=jget('pulseCache',null);
+    if(c&&Array.isArray(c.events)){state.events=c.events;state.last=c.t||0;renderQuakes()}
+    toast(AR()?'تعذر تحديث موجز USGS، تم الاحتفاظ بآخر بيانات متاحة.':'USGS refresh failed; last available data was retained.');
+  }
+}
+
+/* ---------- Views ---------- */
+function switchTab(tab){state.tab=tab;$$('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));render()}
+function render(){
+  ({earthquakes:earthquakesView,analytics:analyticsView,timeline:timelineView,swarm:swarmView,volcanoes:volcanoView,watch:watchView,alerts:alertsView}[state.tab]||overviewView)();
+}
+const empty=t=>`<div class="empty">${t||T('noData')}</div>`;
+function eventCard(e){
+  return `<article class="event" data-id="${esc(e.id)}"><div class="mag" style="color:${magColor(e.mag)}"><b>${e.mag.toFixed(1)}</b></div>
+  <div><h3>${esc(e.place)}</h3><p>${ago(e.time)} · ${dep(e)}</p></div><span class="badge" style="color:${magColor(e.mag)}">${esc(e.magType)}</span></article>`;
+}
+function wireFilters(){
+  $$('.event[data-id]').forEach(el=>el.onclick=()=>{const e=state.events.find(x=>String(x.id)===String(el.dataset.id));if(e)openEvent(e)});
+}
+const metric=(v,l)=>`<div class="card metric"><b>${v}</b><small>${l}</small></div>`;
+function overviewView(){
+  const s=strongest(),a=averageMagnitude();
+  $('#content').innerHTML=`<div class="grid">${metric(state.events.length,T('total'))}${metric(s?s.mag.toFixed(1):'—',T('strongest'))}${metric(a?a.toFixed(2):'—',T('average'))}${metric(deepCount(),T('deep'))}</div>
+  <div class="sectionTitle"><b>${T('recent')}</b><span>${state.last?new Date(state.last).toLocaleTimeString():'—'}</span></div>
+  <div class="feed">${filteredEvents().slice(0,10).map(eventCard).join('')||empty()}</div>`;
+  wireFilters();
+}
+function earthquakesView(){
+  $('#content').innerHTML=`<div class="toolbar">
+  <select class="select" id="minMag">${[0,2,3,4,5,6].map(n=>`<option value="${n}">M ≥ ${n}</option>`).join('')}</select>
+  <select class="select" id="depthFilter">${[700,100,70,30].map(n=>`<option value="${n}">${T('depth')} ≤ ${n} km</option>`).join('')}</select>
+  <button class="btn" id="replayBtn">${T('replay')}</button></div>
+  <div class="sectionTitle"><b>${T('earthquakes')}</b><span>${filteredEvents().length}</span></div>
+  <div class="feed">${filteredEvents().slice(0,50).map(eventCard).join('')||empty()}</div>`;
+  $('#minMag').value=String(state.minMag);$('#depthFilter').value=String(state.maxDepth);
+  $('#minMag').onchange=e=>{state.minMag=Number(e.target.value);renderQuakes();render()};
+  $('#depthFilter').onchange=e=>{state.maxDepth=Number(e.target.value);renderQuakes();render()};
+  $('#replayBtn').onclick=replay;
+  wireFilters();
+}
+function analyticsView(){
+  const ev=state.events.filter(validEvent);
+  if(!ev.length){$('#content').innerHTML=empty();return}
+  const bins=[['0–2',0,2],['2–3',2,3],['3–4',3,4],['4–5',4,5],['5–6',5,6],['6+',6,99]];
+  const counts=bins.map(b=>ev.filter(e=>e.mag>=b[1]&&e.mag<b[2]).length),mx=Math.max(1,...counts);
+  const bars=counts.map((c,i)=>{const h=Math.max(4,Math.round(c/mx*135));return `<rect x="${30+i*55}" y="${150-h}" width="34" height="${h}" rx="6" fill="${magColor(bins[i][1]+.5)}"/><text x="${47+i*55}" y="168" text-anchor="middle" fill="#91aaa5" font-size="9">${bins[i][0]}</text><text x="${47+i*55}" y="${145-h}" text-anchor="middle" fill="#edf8f4" font-size="9">${c}</text>`}).join('');
+  const s=strongest();
+  $('#content').innerHTML=`<div class="grid">${metric(ev.length,T('total'))}${metric(averageMagnitude().toFixed(2),T('average'))}${metric(deepCount(),T('deep'))}${metric(s?s.mag.toFixed(1):'—',T('strongest'))}</div>
+  <div class="sectionTitle"><b>${X('توزيع المقادير','Magnitude distribution')}</b><span>${X('موجز USGS الحالي','Current USGS feed')}</span></div>
+  <div class="chart"><svg viewBox="0 0 370 180" preserveAspectRatio="none"><line x1="20" y1="150" x2="350" y2="150" stroke="#1c3433"/>${bars}</svg></div>
+  <div class="sectionTitle"><b>${X('ملاحظات علمية','Scientific notes')}</b></div>
+  <div class="card"><p class="footerNote">${AR()?'المقدار مقياس لوصف حجم الزلزال عند المصدر، بينما MMI تصف شدة الاهتزاز في موقع معين. لا ينبغي استخدامهما كمقياس واحد.':'Magnitude describes earthquake size at the source, while MMI describes shaking intensity at a particular location. They are not the same measure.'}</p>
+  <p class="footerNote">${AR()?'تقدير الطاقة يستخدم العلاقة: log10(E[J]) = 1.5M + 4.8.':'Energy estimates use: log10(E[J]) = 1.5M + 4.8.'}</p></div>`;
+}
+function timelineView(){
+  const ev=filteredEvents();
+  const rows=ev.slice(0,60).map(e=>`<article class="event" data-id="${esc(e.id)}"><div class="mag" style="color:${magColor(e.mag)}"><b>${new Date(e.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</b></div><div><h3>${esc(e.place)}</h3><p>M ${e.mag.toFixed(1)} · ${ago(e.time)}</p></div><span class="badge" style="color:${magColor(e.mag)}">${esc(e.magType)}</span></article>`).join('');
+  $('#content').innerHTML=`<div class="sectionTitle"><b>${T('timeline')}</b><span>${ev.length}</span></div><div class="feed">${rows||empty()}</div>`;
+  wireFilters();
+}
+function distanceKm(a,b,c,d){
+  const R=6371,r=Math.PI/180,dLa=(c-a)*r,dLo=(d-b)*r;
+  const x=Math.sin(dLa/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin(dLo/2)**2;
+  return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+function clusterScore(e){return state.events.filter(x=>x!==e&&validEvent(x)&&distanceKm(e.lat,e.lon,x.lat,x.lon)<=50&&Math.abs(x.time-e.time)<=72*3600*1000).length}
+function swarmCandidates(){return state.events.filter(validEvent).map(e=>({e,s:clusterScore(e)})).filter(o=>o.s>=3).sort((a,b)=>b.s-a.s)}
+function swarmView(){
+  const c=swarmCandidates();
+  $('#content').innerHTML=`<div class="grid">${metric(c.length,T('swarmScore'))}${metric('PULSE',T('calculated'))}</div>
+  <div class="sectionTitle"><b>${T('swarm')}</b><span>${c.length}</span></div>
+  <div class="feed">${c.slice(0,6).map(({e,s})=>`<article class="event" data-id="${esc(e.id)}"><div class="mag" style="color:${magColor(e.mag)}"><b>${e.mag.toFixed(1)}</b></div><div><h3>${esc(e.place)}</h3><p>${s} ${X('أحداث قريبة','nearby events')} · ${ago(e.time)}</p></div><span class="badge warn">${X('تجمّع','CLUSTER')}</span></article>`).join('')||empty(AR()?'لا توجد تجمعات واضحة ضمن البيانات الحالية.':'No clear clusters in the current feed.')}</div>
+  <p class="footerNote">${AR()?'التجمعات مؤشرات حسابية من PULSE وليست تصنيفات رسمية من USGS.':'Clusters are calculated indicators from PULSE, not official USGS classifications.'}</p>`;
+  wireFilters();
+}
+function volcanoView(){
+  $('#content').innerHTML=`<div class="grid">${metric(state.volcanoes.length,T('volElevated'))}${metric('GVP',X('الكتالوج العالمي','Global catalog'))}</div>
+  <div class="sectionTitle"><b>${T('volcanoes')}</b><span>${X('موجز USGS للنشاط المرتفع','USGS elevated feed')}</span></div>
+  ${state.volcanoes.length?`<div class="feed">${state.volcanoes.map((v,i)=>`<article class="event" data-vol="${i}"><div class="mag" style="color:var(--accent2);font-size:22px">🌋</div><div><h3>${esc(v.name)}</h3><p>${esc(v.country)} · ${esc(v.status||'Elevated')}</p></div><span class="badge warn">USGS</span></article>`).join('')}</div>`:empty(X('لا توجد حالياً براكين مرتفعة في موجز USGS أو تعذر تحميله.','No elevated volcanoes in the USGS feed right now, or it failed to load.'))}
+  <p class="footerNote">${X('PULSE يميز بين موجز النشاط المرتفع من USGS وبيانات Global Volcanism Program التاريخية/الحالية. كتالوج GVP يشمل آلاف السجلات البركانية ويُحدّث دورياً.','PULSE distinguishes between the USGS elevated-activity feed and Global Volcanism Program data. The GVP catalog contains thousands of volcanic records and is updated periodically.')}</p>`;
+  $$('[data-vol]').forEach(el=>el.onclick=()=>{const v=state.volcanoes[+el.dataset.vol];goTo(v.lat,v.lon,7);scrollToMap()});
+}
+function watchEvents(){
+  const w=state.watch;
+  if(!w||!w.enabled||!Number.isFinite(w.lat)||!Number.isFinite(w.lon))return[];
+  const r=Number(w.radius||500);
+  return state.events.filter(validEvent).filter(e=>distanceKm(w.lat,w.lon,e.lat,e.lon)<=r);
+}
+function saveWatch(){jset('pulseWatch',state.watch)}
+function ensureWatch(){if(!state.watch)state.watch={enabled:false,lat:0,lon:0,radius:500}}
+function watchView(){
+  const w=state.watch,we=watchEvents();
+  $('#content').innerHTML=`<div class="card"><div class="sectionTitle"><b>${T('regionWatch')}</b><span>${w?.enabled?'ON':'OFF'}</span></div>
+  <div class="row"><div><b>${T('regionWatch')}</b><div class="footerNote">${w?`${Number(w.lat).toFixed(3)}, ${Number(w.lon).toFixed(3)}`:'—'}</div></div><button class="btn" id="watchToggle">${w?.enabled?T('disableWatch'):T('enableWatch')}</button></div>
+  <div class="row"><div><b>${T('radius')}</b></div><input id="watchRadius" class="select" type="number" min="10" step="10" value="${w?.radius||500}" style="width:100px"/></div>
+  <div class="toolbar"><button class="btn secondary" id="watchLocate">${T('myLocation')}</button></div></div>
+  <div class="sectionTitle"><b>${X('أحداث في المنطقة','Events in region')}</b><span>${we.length}</span></div>
+  <div class="feed">${we.slice(0,20).map(eventCard).join('')||empty()}</div>`;
+  $('#watchToggle').onclick=()=>{ensureWatch();state.watch.enabled=!state.watch.enabled;saveWatch();render()};
+  $('#watchRadius').onchange=e=>{ensureWatch();state.watch.radius=Number(e.target.value)||500;saveWatch();render()};
+  $('#watchLocate').onclick=()=>{
+    if(!navigator.geolocation){toast(X('الموقع الجغرافي غير متاح','Geolocation unavailable'));return}
+    navigator.geolocation.getCurrentPosition(p=>{
+      state.watch={enabled:true,lat:p.coords.latitude,lon:p.coords.longitude,radius:Number($('#watchRadius').value)||500};
+      saveWatch();goTo(p.coords.latitude,p.coords.longitude,7);render();
+    },()=>toast(X('تعذر الوصول إلى موقعك','Could not access your location')));
+  };
+  wireFilters();
+}
+function alertsView(){
+  const A=state.alerts;
+  const sw=(id,k,l,note)=>`<div class="row"><div><b>${l}</b>${note?`<small class="footerNote"> ${note}</small>`:''}</div><button class="switch ${A[k]?'on':''}" id="${id}"><i></i></button></div>`;
+  $('#content').innerHTML=`<div class="sectionTitle"><b>${T('alertSettings')}</b><span>${X('هذا الجهاز','Local device')}</span></div>
+  ${sw('swBrowser','browser',T('browser'),X('تنبيهات المتصفح عند وصول حدث يطابق العتبة.','Browser notification when an event matches the threshold.'))}${sw('swSound','sound',T('sound'))}${sw('swVibration','vibration',T('vibration'))}
+  <div class="row"><div><b>${T('magnitudeThreshold')}</b></div><input id="magThreshold" type="number" min="0" max="9" step="0.1" value="${A.mag??5}" class="select" style="width:90px"/></div>
+  <div class="row"><div><b>${T('distanceThreshold')}</b></div><input id="radThreshold" type="number" min="0" step="10" value="${A.radius??500}" class="select" style="width:110px"/></div>
+  <div class="toolbar" style="margin-top:12px"><button class="btn" id="saveAlerts">${T('save')}</button><button class="btn secondary" id="testAlert">${X('تجربة','Test')}</button></div>
+  <p class="footerNote">${X('التنبيه لا يتنبأ بالزلازل ولا يستبدل التحذيرات الرسمية. PULSE يعتمد على البيانات الواردة من المصادر الرسمية بعد نشرها.','Alerts do not predict earthquakes and do not replace official warnings. PULSE relies on data from official sources after it is published.')}</p>`;
+  [['swBrowser','browser'],['swSound','sound'],['swVibration','vibration']].forEach(([id,k])=>$('#'+id).onclick=()=>{
+    state.alerts[k]=!state.alerts[k];jset('pulseAlerts',state.alerts);
+    if(k==='browser'&&state.alerts.browser&&'Notification' in window&&Notification.permission==='default')Notification.requestPermission().catch(()=>{});
+    render();
+  });
+  $('#saveAlerts').onclick=()=>{state.alerts.mag=Number($('#magThreshold').value)||5;state.alerts.radius=Number($('#radThreshold').value)||500;jset('pulseAlerts',state.alerts);toast(X('تم حفظ إعدادات التنبيه','Alert settings saved'))};
+  $('#testAlert').onclick=()=>notifyUser({place:'PULSE test',mag:state.alerts.mag||5,lat:0,lon:0},true);
+}
+
+/* ---------- Utilities ---------- */
+function toast(text){
+  const n=document.createElement('div');n.textContent=text;
+  n.style.cssText='position:fixed;z-index:3000;bottom:20px;left:50%;transform:translateX(-50%);background:#0c1919;border:1px solid #31514d;color:#fff;padding:11px 15px;border-radius:12px;box-shadow:0 12px 35px #0009;font-size:12px;max-width:90vw;text-align:center';
+  document.body.appendChild(n);setTimeout(()=>n.remove(),2800);
+}
+let replaying=null;
+function replay(){
+  const arr=filteredEvents().sort((a,b)=>a.time-b.time);
+  if(!arr.length)return;
+  scrollToMap();
+  if(replaying)clearInterval(replaying);
+  let i=0;
+  replaying=setInterval(()=>{
+    if(i>=arr.length){clearInterval(replaying);replaying=null;renderQuakes();return}
+    const show=arr.slice(0,i+1);
+    if(leafletReady)drawQuakes(show);else renderFallbackMap(show);
+    i++;
+  },180);
+}
+async function searchPlace(q){
+  if(!q.trim())return;
+  toast(T('searching'));
+  try{
+    const r=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q='+encodeURIComponent(q),{headers:{'Accept-Language':state.lang}});
+    const a=await r.json();
+    if(a[0]){
+      const lat=Number(a[0].lat),lon=Number(a[0].lon);
+      scrollToMap();
+      if(leafletReady&&map)map.setView([lat,lon],8);else toast(`${lat.toFixed(4)}, ${lon.toFixed(4)}`);
+    }else toast(X('لا توجد نتيجة','No results'));
+  }catch{toast(X('تعذر البحث','Search failed'))}
+}
+function shareText(text){
+  if(navigator.share)navigator.share({title:'PULSE 4.1',text}).catch(()=>{});
+  else if(navigator.clipboard)navigator.clipboard.writeText(text).then(()=>toast(X('تم النسخ','Copied'))).catch(()=>{});
+}
+function openModal(title,body){$('#modalTitle').textContent=title;$('#modalBody').innerHTML=body;$('#modal').classList.add('open');$('#modal').setAttribute('aria-hidden','false')}
+function closeModal(){$('#modal').classList.remove('open');$('#modal').setAttribute('aria-hidden','true')}
+function setBase(k){
+  if(leafletReady&&map&&base[k]){Object.values(base).forEach(l=>{try{map.removeLayer(l)}catch{}});base[k].addTo(map)}
+  state.layer=k;closeModal();
+}
+function toggleVol(){
+  if(leafletReady&&map&&volcanoLayer){map.hasLayer(volcanoLayer)?map.removeLayer(volcanoLayer):map.addLayer(volcanoLayer)}
+  else{const g=document.getElementById('fallbackVolcanoes');if(g)g.style.display=g.style.display==='none'?'':'none'}
+  closeModal();
+}
+/* scrolling between the full-screen map and the lower sections */
+function scrollToMap(){$('#mainScroll').scrollTop=0}
+function scrollToFeed(){$('#mainScroll').scrollTop=$('#liveSection').offsetTop}
+
+/* ---------- Events ---------- */
+$('#shareBtn').onclick=()=>shareText('PULSE 4.1 — Global Seismic & Volcanic Intelligence');
+$('#search').addEventListener('keydown',e=>{if(e.key==='Enter')searchPlace(e.target.value)});
+$('#langBtn').onclick=()=>{state.lang=AR()?'en':'ar';jset('pulseLang',state.lang);applyLang()};
+$('#liveBtn').onclick=()=>{
+  state.live=!state.live;
+  $('#liveText').textContent=state.live?'LIVE':'PAUSED';
+  $('#liveDot').classList.toggle('off',!state.live);
+  toast(state.live?X('تم استئناف المراقبة المباشرة','Live monitoring resumed'):X('تم إيقاف المراقبة المباشرة مؤقتاً','Live monitoring paused'));
+};
+$('#alertBtn').onclick=()=>{switchTab('alerts');$('#mainScroll').scrollTop=$('.sheet').offsetTop};
+$('#locBtn').onclick=()=>{
+  if(!navigator.geolocation){toast(X('الموقع الجغرافي غير متاح','Geolocation unavailable'));return}
+  navigator.geolocation.getCurrentPosition(p=>{
+    const{latitude,longitude,accuracy}=p.coords;
+    if(leafletReady&&map){
+      map.setView([latitude,longitude],9);
+      if(userMarker)map.removeLayer(userMarker);
+      userMarker=L.circleMarker([latitude,longitude],{radius:8,color:'#57e3a0',fillOpacity:.8}).addTo(map).bindPopup(`${X('موقعي','My location')}<br>±${Math.round(accuracy)}m`).openPopup();
+    }else toast(`${X('موقعك','Your location')}: ${latitude.toFixed(4)}, ${longitude.toFixed(4)} ±${Math.round(accuracy)}m`);
+  },()=>toast(X('تعذر الوصول إلى موقعك','Could not access your location')));
+};
+$('#fitBtn').onclick=()=>{
+  const a=state.events.filter(validEvent);if(!a.length)return;
+  if(leafletReady&&map)map.fitBounds(L.latLngBounds(a.map(e=>[e.lat,e.lon])),{padding:[40,40],maxZoom:7});
+  else{fb={s:1,x:0,y:0};renderFallbackMap()}
+};
+$('#heatBtn').onclick=()=>{
+  state.heat=!state.heat;$('#heatBtn').classList.toggle('on',state.heat);
+  renderQuakes();toast(state.heat?X('الخريطة الحرارية: تشغيل','Heatmap ON'):X('الخريطة الحرارية: إيقاف','Heatmap OFF'));
+};
+$('#layersBtn').onclick=()=>{
+  const r=(l,f,b)=>`<div class="row"><span>${l}</span><button class="btn secondary" onclick="${f}">${b}</button></div>`;
+  const use=X('استخدام','Use');
+  openModal(T('layersT'),r(X('داكنة','Dark'),"setBase('dark')",use)+r(X('شوارع','Street'),"setBase('street')",use)+r(X('قمر صناعي','Satellite'),"setBase('sat')",use)+r(X('طبقة البراكين','Volcano layer'),'toggleVol()',X('تبديل','Toggle')));
+};
+$('#modalClose').onclick=closeModal;
+$('#modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal()});
+$$('.tab').forEach(t=>t.onclick=()=>switchTab(t.dataset.tab));
+$('#volBtn').onclick=()=>{switchTab('volcanoes');$('#mainScroll').scrollTop=$('.sheet').offsetTop};
+$('#toFeed').onclick=scrollToFeed;
+$('#toMap').onclick=scrollToMap;
+window.addEventListener('online',()=>{$('#netStatus').textContent=T('online');if(state.live)loadQuakes()});
+window.addEventListener('offline',()=>{$('#netStatus').textContent=T('offline')});
+setInterval(()=>{$('#clock').textContent=new Date().toISOString().replace('T',' ').slice(0,19)},1000);
+setInterval(()=>{if(state.live)loadQuakes()},45000);
+
+async function boot(){
+  initMap();
+  const c=jget('pulseCache',null);
+  if(c?.events&&Array.isArray(c.events)){state.events=c.events;state.last=c.t||0;renderQuakes()}
+  applyLang();
+  await Promise.all([loadQuakes(),loadVolcanoes()]);
+  if('Notification' in window&&state.alerts.browser&&Notification.permission==='default')Notification.requestPermission().catch(()=>{});
+}
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){navigator.serviceWorker.register('./sw.js').catch(()=>{})}
+</script>
+<script>
+'use strict';
+/* ===== PULSE 4.1 patch layer: alerts, pulses, scale, event panel, live feed ===== */
+let selectedEvent=null;
+const sheetEl=$('.sheet');
+(function(){
+  const ev=document.createElement('div');ev.className='evpanel';ev.id='evPanel';
+  sheetEl.querySelector('.grab').after(ev);
+  sheetEl.querySelector('.grab').onclick=()=>sheetEl.classList.toggle('collapsed');
+  $('#langBtn').before($('#alertBtn'));
+})();
+
+function parseFeature(f){
+  const p=f?.properties||{},g=f?.geometry?.coordinates||[],n=v=>v==null?null:Number(v);
+  return{id:String(f.id||p.code||`${p.time}-${g[1]}-${g[0]}`),mag:Number(p.mag),magType:p.magType||'—',place:p.place||p.title||'Unknown location',time:Number(p.time||0),updated:Number(p.updated||p.time||0),lat:Number(g[1]),lon:Number(g[0]),depth:Number(g[2]),url:p.url||'',detail:p.detail||'',felt:n(p.felt),cdi:n(p.cdi),mmi:n(p.mmi),alert:p.alert||null,status:p.status||'',tsunami:Number(p.tsunami||0),sig:Number(p.sig||0),net:p.net||'',code:p.code||'',ids:p.ids||'',nst:n(p.nst),dmin:n(p.dmin),rms:n(p.rms),gap:n(p.gap),type:p.type||'earthquake',title:p.title||`M ${p.mag??'—'} - ${p.place||''}`};
+}
+
+/* Quake markers */
+function quakeClass(m){return m>=6?'major':m>=5?'strong':m>=4?'moderate':''}
+function quakeIcon(e){
+  const c=magColor(e.mag),cls=quakeClass(e.mag),sc=(1.8+Math.min(e.mag,8)*.28).toFixed(2);
+  return L.divIcon({className:'',html:`<div class="quakeMarkerWrap ${cls}" title="M ${e.mag.toFixed(1)} ${esc(e.magType||'')}"><div class="quakePulse" style="color:${c};--s:${sc}"></div><div class="quakePulse p2" style="color:${c};--s:${sc}"></div><div class="quakeMarkerCore" style="color:${c};background:${c}"></div>${e.mag>=5?`<span class="quakeLabel">M${e.mag.toFixed(1)}</span>`:''}</div>`,iconSize:[30,30],iconAnchor:[15,15],popupAnchor:[0,-15]});
+}
+
+/* Magnitude scale + event panel */
+function magnitudeScale(e){
+  const m=Number.isFinite(e.mag)?e.mag:0,left=Math.max(0,Math.min(10,m))/10*100;
+  return `<div class="magnitudeScale"><div class="magnitudeScaleTitle"><span>${AR()?'مقياس قوة الزلزال':'Earthquake Magnitude'}</span><strong>M ${m.toFixed(1)} <small>${esc(e.magType||'—')}</small></strong></div><div class="magnitudeTrack"><div class="magnitudePointer" style="left:${left}%" title="M ${m.toFixed(1)}"></div></div><div class="magnitudeLabels"><span>0</span><span>2</span><span>4</span><span>6</span><span>8</span><span>10+</span></div></div>`;
+}
+const num=(v,d=1)=>Number.isFinite(v)?v.toFixed(d):'—';
+const yesNo=v=>v?X('نعم','YES'):X('لا','NO');
+function currentEvent(){return(selectedEvent&&(state.events.find(x=>x.id===selectedEvent.id)||selectedEvent))||strongest()}
+function renderEvPanel(){
+  const p=$('#evPanel');if(!p)return;
+  const e=currentEvent();
+  if(!e){p.innerHTML=`<div class="footerNote">${T('noData')}</div>`;return}
+  p.innerHTML=`${magnitudeScale(e)}
+  <div class="evInfo"><span>📍 <b>${esc(e.place)}</b></span><span>⬇ <b>${dep(e)}</b></span><span>🕒 <b>${ago(e.time)}</b></span></div>
+  <div class="evBadges"><span class="badge">${T('tsunami')}: <b>${yesNo(e.tsunami)}</b></span><span class="badge">${T('felt')}: <b>${e.felt??0}</b></span><span class="badge">MMI: <b>${num(e.mmi)}</b></span><span class="badge">${T('alert')}: <b>${esc(e.alert||'—')}</b></span>
+  <button class="btn secondary" id="evDetails" style="padding:5px 10px;font-size:11px">${T('details')}</button>${selectedEvent?'':`<span class="evTag">${T('strongest')}</span>`}</div>`;
+  $('#evDetails').onclick=()=>openEventDetails(e);
+}
+function openEvent(e){
+  if(!e)return;
+  selectedEvent=e;sheetEl.classList.remove('collapsed');renderEvPanel();
+  goTo(e.lat,e.lon,Math.max(map?.getZoom?.()||2,5));
+}
+function openEventDetails(e){
+  const kv=(l,v)=>`<div><small>${l}</small><b>${v}</b></div>`;
+  openModal(`M ${num(e.mag)} — ${e.place}`,`${magnitudeScale(e)}
+  <p class="footerNote">${AR()?'نوع القياس':'Magnitude type'}: ${esc(e.magType||'—')}. ${AR()?'المقدار ليس هو نفسه شدة الاهتزاز المحلية (MMI).':'Magnitude is not the same as local shaking intensity (MMI).'}</p>
+  <div class="sectionTitle"><b>${T('details')}</b></div>
+  <div class="kv">${kv(T('location'),esc(e.place))}${kv(T('depth'),dep(e))}${kv(T('time'),fmtTime(e.time))}${kv(T('source'),'USGS · '+esc(e.net||'—'))}${kv(T('tsunami'),yesNo(e.tsunami))}${kv(T('felt'),e.felt??0)}${kv('MMI / CDI',`${num(e.mmi)} / ${num(e.cdi)}`)}${kv(T('alert'),esc(e.alert||'—'))}${kv(T('station'),e.nst??'—')}${kv('Gap / RMS / Dmin',`${num(e.gap,0)} / ${num(e.rms,2)} / ${num(e.dmin,2)}`)}${kv(T('statusLbl'),esc(e.status||'—'))}${kv(T('sigLbl'),e.sig||'—')}${kv(T('energyEstimate'),formatEnergy(e.mag))}${kv(T('typeLbl'),esc(e.type))}</div>
+  <div class="sectionTitle"><b>${T('formula')}</b></div>
+  <div class="card"><code>log10(E[J]) = 1.5 × M + 4.8</code><p class="footerNote">${AR()?'تقدير تقريبي من علاقة تجريبية، وليس قياسًا مباشرًا.':'Approximate estimate from an empirical relationship, not a direct measurement.'}</p></div>
+  ${e.url?`<div class="toolbar" style="margin-top:12px"><a class="btn" href="${esc(e.url)}" target="_blank" rel="noopener noreferrer">USGS</a></div>`:''}`);
+}
+
+/* Live feed: latest events with complete data, shown below the full-screen map */
+let liveLimit=20;
+function liveCard(e){
+  const kv=(l,v)=>`<div><small>${l}</small><b>${v}</b></div>`;
+  return `<article class="liveCard" data-id="${esc(e.id)}">
+  <div class="liveTop"><div class="mag" style="color:${magColor(e.mag)}"><b>${e.mag.toFixed(1)}</b></div>
+  <div><h3>${esc(e.place)}</h3><p>${ago(e.time)} · ${dep(e)}</p></div><span class="badge" style="color:${magColor(e.mag)}">${esc(e.magType)}</span></div>
+  <div class="kv">${kv(T('time'),fmtTime(e.time))}${kv(T('updatedAt'),e.updated?fmtTime(e.updated):'—')}${kv(T('coords'),`${num(e.lat,4)}, ${num(e.lon,4)}`)}${kv(T('depth'),dep(e))}${kv(T('magTypeLbl'),esc(e.magType||'—'))}${kv(T('tsunami'),yesNo(e.tsunami))}${kv(T('felt'),e.felt??0)}${kv('MMI / CDI',`${num(e.mmi)} / ${num(e.cdi)}`)}${kv(T('alert'),esc(e.alert||'—'))}${kv(T('station'),e.nst??'—')}${kv('Gap / RMS / Dmin',`${num(e.gap,0)} / ${num(e.rms,2)} / ${num(e.dmin,2)}`)}${kv(T('sigLbl'),e.sig||'—')}${kv(T('statusLbl'),esc(e.status||'—'))}${kv(T('typeLbl'),esc(e.type))}${kv(T('source'),'USGS · '+esc(e.net||'—'))}${kv(T('energyEstimate'),formatEnergy(e.mag))}${kv('ID',esc(e.id))}</div>
+  <div class="toolbar"><button class="btn secondary" data-map="${esc(e.id)}">${T('showOnMap')}</button>${e.url?`<a class="btn" href="${esc(e.url)}" target="_blank" rel="noopener noreferrer">USGS</a>`:''}</div></article>`;
+}
+function renderLiveFeed(){
+  const box=$('#liveFeed');if(!box)return;
+  const all=filteredEvents(),list=all.slice(0,liveLimit);
+  $('#liveSub').textContent=all.length?`${T('updatedLbl')}: ${state.last?new Date(state.last).toLocaleTimeString():'—'} · ${all.length}`:'';
+  box.innerHTML=list.map(liveCard).join('')||empty();
+  const more=$('#liveMore');
+  more.style.display=all.length>liveLimit?'':'none';
+  more.textContent=`${T('showMore')} (${all.length-liveLimit})`;
+  box.querySelectorAll('[data-map]').forEach(b=>b.onclick=()=>{
+    const e=state.events.find(x=>String(x.id)===String(b.getAttribute('data-map')));
+    if(e){scrollToMap();openEvent(e)}
+  });
+}
+$('#liveMore').onclick=()=>{liveLimit+=20;renderLiveFeed()};
+setInterval(renderLiveFeed,30000);
+
+const _applyLang=applyLang;applyLang=function(){_applyLang();renderEvPanel();renderLiveFeed()};
+
+/* Developer card */
+function feedbackCard(){return `<div class="feedbackBox"><div style="font-weight:900;font-size:15px;margin-bottom:5px">💬 ${AR()?'ملاحظات وتواصل مع المطور':'Feedback & Developer Contact'}</div><div style="color:#9eb2ae;font-size:12px;line-height:1.7">${AR()?'أرسل ملاحظاتك أو أبلغ عن مشكلة في التطبيق مباشرة إلى المطور Nidal Watfa.':'Send feedback or report an issue directly to developer Nidal Watfa.'}</div><div style="margin-top:8px;font-size:12px;font-weight:800">Nidal Watfa</div><div style="font-size:11px;color:#8fa7a3;margin-top:3px">nidalwatfa99@gmail.com</div><div class="feedbackActions"><a href="mailto:nidalwatfa99@gmail.com?subject=PULSE%204.1%20Feedback">✉️ ${AR()?'إرسال بريد':'Email Developer'}</a><a href="https://wa.me/96399885450?text=PULSE%204.1%20Feedback" target="_blank" rel="noopener noreferrer">💬 WhatsApp</a></div></div>`}
+const _overviewView=overviewView;overviewView=function(){_overviewView();$('#content').insertAdjacentHTML('beforeend',feedbackCard())};
+$('#devChip').onclick=()=>openModal(AR()?'التواصل مع المطور':'Developer contact',feedbackCard());
+const _alertsView=alertsView;alertsView=function(){_alertsView();$('#content').insertAdjacentHTML('beforeend',feedbackCard())};
+
+/* ===== Alert engine ===== */
+const alertRuntime={audioReady:false,audioContext:null,seenEarthquakes:new Set(jget('pulseSeenEarthquakes',[])),seenVolcanoes:new Set(jget('pulseSeenVolcanoes',[])),lastEarthquakeAlert:0,lastVolcanoAlert:0};
+function saveAlertMemory(){jset('pulseSeenEarthquakes',Array.from(alertRuntime.seenEarthquakes).slice(-500));jset('pulseSeenVolcanoes',Array.from(alertRuntime.seenVolcanoes).slice(-300))}
+function ensureAlertBanner(){
+  if($('#pulseAlertBanner'))return;
+  document.body.insertAdjacentHTML('beforeend',`<div class="alertBanner" id="pulseAlertBanner" role="alert" aria-live="assertive"><div class="alertBannerTitle" id="pulseAlertTitle"></div><div class="alertBannerText" id="pulseAlertText"></div><div class="alertBannerActions"><button class="btn" id="pulseAlertOpen" data-i18n="viewEvent">عرض الحدث</button><button class="btn" id="pulseAlertClose" data-i18n="close">إغلاق</button></div></div>
+  <div class="audioActivation" id="pulseAudioActivation"><div style="font-weight:900;margin-bottom:7px" data-i18n="actTitle">🔔 تفعيل تنبيهات PULSE</div><div style="font-size:12px;color:#9eb2ae;line-height:1.7;margin-bottom:10px" data-i18n="actText">فعّل الصوت والإشعارات حتى يتمكن PULSE من تنبيهك عند اكتشاف زلزال أو تحديث بركاني مهم.</div><button id="pulseEnableAlerts" data-i18n="actBtn">🔔 تفعيل التنبيهات الآن</button></div>`);
+  $('#pulseAlertClose').addEventListener('click',hideAlertBanner);
+}
+function makeAudio(){
+  const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+  if(!alertRuntime.audioContext)alertRuntime.audioContext=new AC();
+  const c=alertRuntime.audioContext;if(c.state==='suspended')c.resume().catch(()=>{});
+  alertRuntime.audioReady=true;
+}
+function initAlertSystem(){
+  ensureAlertBanner();
+  if(!lget('pulseAlertActivated'))setTimeout(()=>$('#pulseAudioActivation')?.classList.add('show'),1200);
+  else addEventListener('pointerdown',()=>{try{makeAudio()}catch{}},{once:true});
+  $('#pulseEnableAlerts').addEventListener('click',activateAlertSystem);
+}
+async function activateAlertSystem(){
+  try{makeAudio();const c=alertRuntime.audioContext;if(c){const o=c.createOscillator(),g=c.createGain();g.gain.value=.0001;o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.04)}}catch(err){console.warn('PULSE audio activation failed',err)}
+  if('Notification' in window&&Notification.permission==='default'){try{await Notification.requestPermission()}catch{}}
+  if(navigator.vibrate){try{navigator.vibrate([80,50,80])}catch{}}
+  state.alerts.sound=true;state.alerts.vibration=true;state.alerts.browser=('Notification' in window)&&Notification.permission==='granted';
+  jset('pulseAlerts',state.alerts);jset('pulseAlertActivated','1');
+  $('#pulseAudioActivation')?.classList.remove('show');
+  if(state.tab==='alerts')render();
+  toast(AR()?'تم تفعيل تنبيهات PULSE الصوتية.':'PULSE audio alerts are now enabled.');
+}
+function beepSequence(kind='earthquake',sev=1){
+  if(!state.alerts.sound||!alertRuntime.audioReady||!alertRuntime.audioContext)return;
+  const ctx=alertRuntime.audioContext,now=ctx.currentTime;
+  const pat=kind==='volcano'?[220,330,220,330]:sev>=3?[660,880,660,1040]:[520,720];
+  pat.forEach((fr,i)=>{const st=now+i*.18,o=ctx.createOscillator(),g=ctx.createGain();o.type=kind==='volcano'?'triangle':'sine';o.frequency.setValueAtTime(fr,st);g.gain.setValueAtTime(.0001,st);g.gain.exponentialRampToValueAtTime(.16,st+.025);g.gain.exponentialRampToValueAtTime(.0001,st+.14);o.connect(g);g.connect(ctx.destination);o.start(st);o.stop(st+.16)});
+}
+function vibrateAlert(sev=1){
+  if(!state.alerts.vibration||!navigator.vibrate)return;
+  try{navigator.vibrate(sev>=3?[180,70,180,70,300]:sev===2?[120,60,120]:[90])}catch{}
+}
+function systemNotification(title,body,url){
+  if(!state.alerts.browser||!('Notification' in window)||Notification.permission!=='granted')return;
+  try{const n=new Notification(title,{body,tag:'pulse-alert',renotify:true,icon:'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="48" fill="%23071313"/%3E%3Cpath d="M12 58h20l7-20 12 43 10-31 7 18h20" fill="none" stroke="%2357e3a0" stroke-width="7"/%3E%3C/svg%3E'});
+    n.onclick=()=>{window.focus();if(url)window.open(url,'_blank','noopener,noreferrer');n.close()}}catch(err){console.warn('Notification failed',err)}
+}
+let activeAlertEvent=null;
+function showAlertBanner(title,text,event=null,noAction=false){
+  ensureAlertBanner();activeAlertEvent=event;
+  $('#pulseAlertTitle').textContent=title;$('#pulseAlertText').textContent=text;
+  const b=$('#pulseAlertOpen');b.style.display=noAction?'none':'';
+  b.onclick=()=>{if(activeAlertEvent){scrollToMap();openEvent(activeAlertEvent)}else{switchTab('volcanoes');$('#mainScroll').scrollTop=$('.sheet').offsetTop}hideAlertBanner()};
+  $('#pulseAlertBanner').classList.add('show');
+}
+function hideAlertBanner(){$('#pulseAlertBanner')?.classList.remove('show');activeAlertEvent=null}
+
+const earthquakeSeverity=e=>e.mag>=6?3:e.mag>=5?2:1;
+function shouldAlertEarthquake(e){
+  if(!e||!Number.isFinite(e.mag))return false;
+  if(e.mag<Number(state.alerts?.mag??5))return false;
+  return !alertRuntime.seenEarthquakes.has(String(e.id));
+}
+function alertEarthquake(e){
+  if(!shouldAlertEarthquake(e))return;
+  alertRuntime.seenEarthquakes.add(String(e.id));saveAlertMemory();
+  const sev=earthquakeSeverity(e);
+  const ts=Number(e.tsunami)===1?(AR()?'⚠️ تسونامي: نعم':'⚠️ Tsunami: YES'):(AR()?'تسونامي: لا':'Tsunami: No');
+  const title=AR()?`🔴 تنبيه زلزال — M ${e.mag.toFixed(1)}`:`🔴 EARTHQUAKE ALERT — M ${e.mag.toFixed(1)}`;
+  const body=AR()?`${e.place} · عمق ${dep(e)} · ${ts}`:`${e.place} · Depth ${dep(e)} · ${ts}`;
+  beepSequence('earthquake',sev);vibrateAlert(sev);systemNotification(title,body,e.url);showAlertBanner(title,body,e);
+}
+function checkAlerts(){
+  if(!Array.isArray(state.events))return;
+  for(const e of state.events){
+    if(!shouldAlertEarthquake(e))continue;
+    if(Date.now()-Number(e.time||0)>15*60*1000)continue;
+    alertEarthquake(e);
+  }
+}
+function checkWatchAlerts(){
+  if(!state.watch?.enabled)return;
+  for(const e of watchEvents()){if(Date.now()-Number(e.time||0)<=15*60*1000)alertEarthquake(e)}
+}
+async function notifyUser(e,test){
+  if(test&&!alertRuntime.audioReady)await activateAlertSystem();
+  const title=AR()?`🔴 تنبيه تجريبي — M ${Number(e.mag).toFixed(1)}`:`🔴 TEST ALERT — M ${Number(e.mag).toFixed(1)}`;
+  beepSequence('earthquake',2);vibrateAlert(2);systemNotification(title,e.place);showAlertBanner(title,e.place,null,true);
+}
+/* Volcano alerts */
+const volcKey=v=>`${v.id||v.name}|${v.country}|${v.status}`;
+function volcanoSeverity(v){
+  const s=String(v.status||'').toLowerCase();
+  if(s.includes('red')||s.includes('warning')||s.includes('eruption'))return 3;
+  if(s.includes('orange')||s.includes('watch')||s.includes('elevated'))return 2;
+  return 1;
+}
+const shouldAlertVolcano=v=>!alertRuntime.seenVolcanoes.has(volcKey(v));
+function alertVolcano(v){
+  if(!shouldAlertVolcano(v))return;
+  alertRuntime.seenVolcanoes.add(volcKey(v));saveAlertMemory();
+  const sev=volcanoSeverity(v);
+  const title=AR()?`🌋 تنبيه بركاني — ${v.name}`:`🌋 VOLCANO ALERT — ${v.name}`;
+  const body=AR()?`${v.country||''} · مستوى النشاط: ${v.status||'غير محدد'}`:`${v.country||''} · Activity: ${v.status||'Unknown'}`;
+  beepSequence('volcano',sev);vibrateAlert(sev);systemNotification(title,body,'https://www.usgs.gov/programs/volcano-hazards');showAlertBanner(title,body,null);
+}
+async function loadVolcanoes(){
+  try{
+    const r=await fetch(VOLCANO_URL,{cache:'no-store'});
+    if(!r.ok)throw new Error('Volcano '+r.status);
+    const data=await r.json();
+    const list=Array.isArray(data)?data:Array.isArray(data?.volcanoes)?data.volcanoes:[];
+    state.volcanoes=list.map(v=>({id:v.volcanoId||v.id||v.volcanoName||v.name,name:v.volcanoName||v.name||v.volcano||'Unknown volcano',country:v.country||v.countryName||'',status:v.status||v.alertLevel||'Elevated',lat:Number(v.latitude??v.lat),lon:Number(v.longitude??v.lon),updated:Number(v.updated||v.lastUpdated||Date.now())}));
+    renderQuakes();if(state.tab==='volcanoes')render();
+    const imp=state.volcanoes.filter(v=>{const s=String(v.status||'').toLowerCase();return s.includes('red')||s.includes('orange')||s.includes('warning')||s.includes('eruption')});
+    if(alertRuntime.seenVolcanoes.size===0){imp.forEach(v=>alertRuntime.seenVolcanoes.add(volcKey(v)));saveAlertMemory()}
+    else imp.forEach(alertVolcano);
+  }catch(err){console.warn('Volcano feed failed',err)}
+}
+setInterval(()=>{if(state.live)loadVolcanoes()},600000);
+
+initAlertSystem();
+boot();
+</script>
+</body>
+</html>
